@@ -6,7 +6,7 @@ class GeminiChatbotService {
   GeminiChatbotService._init();
 
   static const String _defaultModel = 'gemini-2.5-flash';
-  String? _userApiKey;
+  String? _userApiKey = 'AIzaSyDfINDtYVGM_Zmzss9rraG7E6_HzsO8O6U';
 
   void setApiKey(String key) {
     _userApiKey = key.trim();
