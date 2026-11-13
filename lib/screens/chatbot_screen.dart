@@ -23,12 +23,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     'Bagaimana cara memilah botol plastik?',
     'Apa bahaya limbah B3 baterai?',
     'Tips membuat pupuk kompos di rumah',
-    'Siapa tim pengembang PilahNusa AI?',
+    'Berapa lama sampah plastik terurai?',
   ];
 
   @override
   void initState() {
     super.initState();
+    GeminiChatbotService.instance.initialize();
     _loadChatHistory();
   }
 
@@ -160,15 +161,17 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            onPressed: () {
-              GeminiChatbotService.instance.setApiKey(controller.text);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Gemini API Key berhasil disimpan!'),
-                  backgroundColor: AppColors.primaryDark,
-                ),
-              );
+            onPressed: () async {
+              await GeminiChatbotService.instance.setApiKey(controller.text);
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Gemini API Key berhasil disimpan!'),
+                    backgroundColor: AppColors.primaryDark,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: const Text('Simpan', style: TextStyle(color: Colors.white)),

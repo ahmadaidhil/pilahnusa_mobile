@@ -79,6 +79,14 @@ class DatabaseHelper {
         timestamp TEXT NOT NULL
       )
     ''');
+
+    // App Settings Table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
   }
 
   // --- History CRUD Operations ---
@@ -196,6 +204,43 @@ class DatabaseHelper {
   Future<int> clearChatMessages() async {
     final db = await database;
     return await db.delete('chat_messages');
+  }
+
+  // --- App Settings (Key-Value) ---
+
+  Future<void> setSetting(String key, String value) async {
+    final db = await database;
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
+    await db.insert(
+      'app_settings',
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<String?> getSetting(String key) async {
+    final db = await database;
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
+    final maps = await db.query(
+      'app_settings',
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      return maps.first['value'] as String?;
+    }
+    return null;
   }
 
   Future<void> close() async {

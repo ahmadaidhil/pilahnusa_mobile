@@ -1,58 +1,69 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../database/database_helper.dart';
 
 class GeminiChatbotService {
   static final GeminiChatbotService instance = GeminiChatbotService._init();
   GeminiChatbotService._init();
 
-  static const String _defaultModel = 'gemini-2.5-flash';
-  String? _userApiKey = 'AIzaSyDfINDtYVGM_Zmzss9rraG7E6_HzsO8O6U';
+  static const List<String> _candidateModels = [
+    'gemini-3.8-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+  ];
 
-  void setApiKey(String key) {
-    _userApiKey = key.trim();
+  String? _userApiKey;
+  bool _initialized = false;
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    try {
+      final savedKey = await DatabaseHelper.instance.getSetting('gemini_api_key');
+      if (savedKey != null && savedKey.trim().isNotEmpty) {
+        _userApiKey = savedKey.trim();
+      }
+      _initialized = true;
+    } catch (e) {
+      debugPrint('[Chatbot] Failed to load saved API key: $e');
+    }
+  }
+
+  Future<void> setApiKey(String key) async {
+    _userApiKey = key.trim().isEmpty ? null : key.trim();
+    try {
+      await DatabaseHelper.instance.setSetting('gemini_api_key', _userApiKey ?? '');
+    } catch (e) {
+      debugPrint('[Chatbot] Failed to save API key to database: $e');
+    }
   }
 
   String? get apiKey => _userApiKey;
 
   String _buildSystemPrompt(String userQuestion) {
     return '''
-Anda adalah asisten edukasi PilahNusa AI yang membantu masyarakat Indonesia memahami pengelolaan sampah, cara penggunaan aplikasi PilahNusa AI, serta profil pengembang.
+Anda adalah asisten edukasi cerdas PilahNusa AI yang membantu masyarakat Indonesia memahami pengelolaan, pemilahan, dan daur ulang sampah serta cara penggunaan aplikasi PilahNusa AI.
 
-Informasi Penting Aplikasi PilahNusa AI:
-1. Langkah Penggunaan Utama:
-   - Akses PilahNusa AI Mobile di smartphone Anda. Di halaman Beranda, sambutan edukasi berbunyi "Scan sampahmu dan pelajari cara pengelolaannya".
-   - Pilih Metode Pemindaian dengan menekan tombol:
-     * "Scan Sekarang" untuk membuka kamera langsung dan memotret objek sampah.
-     * "Upload dari Galeri" untuk memilih foto sampah statis dari penyimpanan perangkat.
-   - Hasil & Panduan Edukasi yang akan ditampilkan meliputi:
-     * Kategori Sampah (Organik, Anorganik, B3) beserta nama klasifikasinya (contoh: "Sisa buah dan sayur", "Botol Plastik").
-     * Tingkat Keyakinan AI (Confidence Level) dalam bentuk persentase.
+Informasi Aplikasi PilahNusa AI:
+1. Panduan Penggunaan:
+   - Di Beranda, pilih tombol "Scan Sekarang" untuk memotret objek sampah langsung via kamera, atau "Upload dari Galeri" untuk memilih foto.
+   - Hasil deteksi AI on-device meliputi:
+     * Kategori Sampah (Organik, Anorganik, B3) dan nama spesifiknya (contoh: Botol Plastik, Kardus, Sisa Makanan).
+     * Tingkat Keyakinan AI (Confidence Level).
      * Waktu Terurai di alam (contoh: 450 tahun untuk botol plastik).
-     * Nilai Ekonomi (Tinggi, Sedang, Rendah).
-     * Cara Pembuangan dan tips daur ulang yang tepat serta video tutorial YouTube.
-   - Navigasi Riwayat: Pengguna dapat menuju menu "Riwayat" di navigasi bawah untuk meninjau kembali riwayat hasil pemindaian sampah yang disimpan secara offline di SQLite database.
-2. Tips Pemotretan / Deteksi Paling Akurat:
-   - Pastikan pencahayaan cukup terang saat memotret objek.
-   - Fokuskan kamera hanya pada satu jenis sampah dalam satu bingkai.
-   - Hindari latar belakang (background) yang terlalu ramai.
-   - Pastikan foto tajam dan tidak kabur (blur).
-3. Profil Pengembang & Capstone Project:
-   - Didirikan dan dikembangkan oleh tim capstone dengan ID CC26-PSU246 untuk program Coding Camp 2026 yang didukung oleh DBS Foundation.
-   - Tim pengembang terdiri dari 6 anggota dengan peran:
-     * Irdan Guntara (Project Manager & AI Engineer) - Universitas Kuningan
-     * Galih Rizaldy (AI Engineer) - Universitas Kuningan
-     * Ema Maleni (Full-Stack Web Developer) - Universitas Primakara
-     * Nayarah Atmawardani (Full-Stack Web Developer) - Universitas Sulawesi Barat
-     * Ryan Dwi Antoni (Data Scientist) - Universitas Negeri Surabaya
-     * Gisca Oktavia Ramadhani (Data Scientist) - Universitas Kuningan
+     * Potensi Nilai Ekonomi & tips daur ulang terperinci.
+     * Video tutorial pemanfaatan ulang dari YouTube.
+   - Semua hasil deteksi tersimpan otomatis di menu Riwayat (database lokal SQLite offline).
+2. Tips Pemotretan Terbaik:
+   - Pastikan pencahayaan cukup terang.
+   - Fokuskan objek sampah di tengah bingkai dan hindari latar belakang yang terlalu ramai.
 
 Aturan Menjawab:
-- Berikan jawaban yang SINGKAT, PADAT, dan JELAS langsung ke inti pertanyaan.
-- Gunakan poin-poin (bullet points) atau daftar ringkas agar sangat mudah dibaca di layar ponsel.
-- Selalu hapus dan jangan pernah gunakan simbol format tambahan atau markdown seperti tanda bintang (*) atau bintang ganda (**) untuk menebalkan atau memiringkan kata. Sampaikan jawaban dalam bentuk teks polos (plain text) yang bersih tanpa simbol pemformatan tersebut.
-- Hanya jawab pertanyaan seputar pengelolaan/pemilahan sampah, penggunaan/tips aplikasi PilahNusa AI, atau profil pengembang (Tim CC26-PSU246).
-- Jika ditanya di luar topik di atas, jawab dengan sopan bahwa Anda adalah asisten edukasi PilahNusa AI dan hanya melayani edukasi pemilahan sampah serta aplikasi PilahNusa AI.
-- Jangan mengarang lokasi drop-point spesifik. Sarankan mengecek bank sampah terdekat atau DLH setempat.
+- Berikan jawaban yang SINGKAT, PADAT, dan RAMAH langsung ke inti pertanyaan.
+- Gunakan poin-poin (bullet points) atau daftar ringkas agar sangat nyaman dibaca di layar HP.
+- Sampaikan jawaban dalam bentuk teks polos (plain text) yang bersih tanpa simbol markdown seperti tanda bintang (* atau **) untuk menebalkan/memiringkan.
+- Hanya jawab pertanyaan seputar pengelolaan sampah, daur ulang, gaya hidup ramah lingkungan, dan penggunaan aplikasi PilahNusa AI.
+- Jangan mengarang lokasi drop-point spesifik. Sarankan mengecek bank sampah terdekat atau kantor Dinas Lingkungan Hidup (DLH) setempat.
 
 Pertanyaan pengguna:
 $userQuestion
@@ -65,127 +76,179 @@ $userQuestion
       throw Exception('Pertanyaan tidak boleh kosong.');
     }
 
+    if (!_initialized) {
+      await initialize();
+    }
+
     final key = _userApiKey;
     if (key == null || key.isEmpty) {
-      // Provide an informative, friendly local response if API key is not yet configured
       return _generateLocalAssistance(trimmedMessage);
     }
 
-    final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/$_defaultModel:generateContent?key=$key',
-    );
-
     final prompt = _buildSystemPrompt(trimmedMessage);
+    String? lastError;
+    bool isAuthError = false;
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contents': [
-          {
-            'role': 'user',
-            'parts': [
-              {'text': prompt}
-            ],
+    for (final model in _candidateModels) {
+      try {
+        final url = Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key',
+        );
+
+        final response = await http
+            .post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'contents': [
+                  {
+                    'role': 'user',
+                    'parts': [
+                      {'text': prompt}
+                    ],
+                  }
+                ],
+                'generationConfig': {
+                  'temperature': 0.4,
+                  'topP': 0.9,
+                  'maxOutputTokens': 700,
+                },
+              }),
+            )
+            .timeout(const Duration(seconds: 12));
+
+        final data = jsonDecode(response.body);
+
+        if (response.statusCode == 200) {
+          final parts = data['candidates']?[0]?['content']?['parts'] as List?;
+          if (parts != null && parts.isNotEmpty) {
+            String reply = parts.map((p) => p['text']?.toString() ?? '').join('\n').trim();
+            // Clean markdown bold/italic asterisks for clean mobile display
+            reply = reply.replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1');
+            reply = reply.replaceAll(RegExp(r'\*([^*]+)\*'), r'$1');
+            return reply;
           }
-        ],
-        'generationConfig': {
-          'temperature': 0.4,
-          'topP': 0.9,
-          'maxOutputTokens': 700,
-        },
-      }),
-    );
-
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode != 200) {
-      final errorMsg = data['error']?['message'] ?? 'Gagal memproses pertanyaan ke Gemini.';
-      throw Exception(errorMsg);
+        } else if (response.statusCode == 403 || response.statusCode == 401) {
+          isAuthError = true;
+          lastError = data['error']?['message'] ?? 'API Key tidak valid atau telah diblokir.';
+          break; // Stop attempting other models if the key itself is rejected
+        } else {
+          lastError = data['error']?['message'] ?? 'Error ${response.statusCode}';
+          // Try next model (e.g. if 404 model not found/deprecated)
+          continue;
+        }
+      } catch (e) {
+        lastError = e.toString();
+      }
     }
 
-    final parts = data['candidates']?[0]?['content']?['parts'] as List?;
-    if (parts == null || parts.isEmpty) {
-      throw Exception('Gemini tidak mengembalikan jawaban. Silakan coba lagi.');
+    // Fallback: If online call failed (e.g. invalid key or connection issue), provide helpful offline answer
+    final localAnswer = _generateLocalAssistance(trimmedMessage);
+    if (isAuthError) {
+      return '''(Mode Offline PilahNusa AI)
+
+$localAnswer
+
+---
+Catatan: API Key Gemini Anda tidak aktif atau dilaporkan bocor oleh Google. Anda dapat memperbarui API Key baru yang valid melalui tombol Kunci di pojok kanan atas.''';
     }
 
-    final reply = parts.map((p) => p['text']?.toString() ?? '').join('\n').trim();
-    return reply;
+    if (lastError != null) {
+      return '''(Mode Offline PilahNusa AI)
+
+$localAnswer''';
+    }
+
+    return localAnswer;
   }
 
   String _generateLocalAssistance(String question) {
     final q = question.toLowerCase();
 
-    if (q.contains('tim') || q.contains('pengembang') || q.contains('capstone') || q.contains('pembuat')) {
-      return '''PilahNusa AI dikembangkan oleh Tim Capstone CC26-PSU246 Program Coding Camp 2026 didukung oleh DBS Foundation:
+    if (q.contains('organik') || q.contains('makanan') || q.contains('sayur') || q.contains('buah') || q.contains('daun') || q.contains('kompos')) {
+      return '''Sampah Organik adalah sampah yang berasal dari sisa makhluk hidup dan dapat terurai secara alami oleh mikroorganisme.
 
-1. Irdan Guntara - Project Manager & AI Engineer (Universitas Kuningan)
-2. Galih Rizaldy - AI Engineer (Universitas Kuningan)
-3. Ema Maleni - Full-Stack Web Developer (Universitas Primakara)
-4. Nayarah Atmawardani - Full-Stack Web Developer (Universitas Sulawesi Barat)
-5. Ryan Dwi Antoni - Data Scientist (Universitas Negeri Surabaya)
-6. Gisca Oktavia Ramadhani - Data Scientist (Universitas Kuningan)''';
+Contoh Sampah Organik:
+• Sisa makanan, nasi, sayuran, dan kulit buah
+• Daun kering, ranting kecil, dan sisa tanaman
+• Kulit telur dan ampas kopi/teh
+
+Cara Pengolahan & Daur Ulang:
+1. Pembuatan Kompos: Kumpulkan di wadah kompos dan campur dengan tanah atau sekam.
+2. Eco-Enzyme: Fermentasikan kulit buah dengan gula dan air untuk cairan pembersih serbaguna.
+3. Pakan Ternak/Maggot BSF: Olah sisa makanan sebagai pakan larva Black Soldier Fly berprotein tinggi.
+4. Tiriskan air sebelum dibuang agar tidak menimbulkan bau tidak sedap.''';
     }
 
-    if (q.contains('organik')) {
-      return '''Sampah Organik adalah sampah yang berasal dari sisa makhluk hidup dan mudah membusuk secara alami.
+    if (q.contains('anorganik') || q.contains('plastik') || q.contains('botol') || q.contains('kardus') || q.contains('kertas') || q.contains('kaleng') || q.contains('kaca') || q.contains('kresek')) {
+      return '''Sampah Anorganik adalah sampah dari material buatan manusia yang tidak dapat membusuk secara alami atau membutuhkan waktu ratusan tahun untuk terurai.
 
-Contoh:
-- Sisa makanan, nasi, sayur dan buah
-- Daun gugur, ranting, dan rumput
+Waktu Terurai Sampah:
+• Kantong plastik: 10 - 20 tahun
+• Botol plastik (PET): 450 tahun
+• Kaleng aluminium: 80 - 200 tahun
+• Kaca: Hingga 1 juta tahun (atau tidak terurai sama sekali)
 
-Cara Pengolahan:
-- Olah menjadi kompos tanaman
-- Tiriskan air sebelum dibuang
-- Pisahkan dari plastik dan kemasan
-- Buat eco-enzyme untuk sisa kulit buah''';
+Langkah Pengelolaan Terbaik (Prinsip 3R):
+1. Bersihkan & Keringkan: Bilas botol atau wadah dari sisa cairan/makanan.
+2. Pipihkan / Ringkas: Remas botol plastik dan lipat kardus untuk menghemat ruang tempat sampah.
+3. Pisahkan berdasarkan jenis: Pisahkan kertas, kardus, plastik bening, dan logam.
+4. Salurkan ke Bank Sampah: Sampah anorganik memiliki nilai ekonomis untuk didaur ulang.''';
     }
 
-    if (q.contains('anorganik') || q.contains('plastik') || q.contains('botol')) {
-      return '''Sampah Anorganik adalah sampah dari bahan non-hayati atau proses industri yang sulit terurai secara alami.
+    if (q.contains('b3') || q.contains('baterai') || q.contains('lampu') || q.contains('racun') || q.contains('obat') || q.contains('elektronik')) {
+      return '''Sampah B3 (Bahan Berbahaya dan Beracun) adalah limbah yang mengandung zat kimia berbahaya, mudah terbakar, meledak, atau beracun bagi manusia dan lingkungan.
 
-Contoh:
-- Botol dan kemasan plastik (terurai 100-500 tahun)
-- Kardus, kertas, kaleng logam, dan kaca
+Contoh Sampah B3 Rumah Tangga:
+• Baterai bekas dan aki
+• Lampu neon / LED rusak
+• Botol aerosol (obat nyamuk, hairspray)
+• Obat-obatan kadaluarsa
+• Wadah deterjen keras, pembersih lantai, dan pestisida
 
-Cara Pengolahan:
-- Kosongkan dan bilas dari sisa makanan/minuman
-- Pipihkan botol plastik atau kardus untuk hemat ruang
-- Kumpulkan dan salurkan ke Bank Sampah atau pengepul daur ulang''';
+Cara Penanganan Khusus:
+1. JANGAN PERNAH dicampur dengan sampah organik atau anorganik.
+2. JANGAN dibakar atau dihancurkan karena dapat melepaskan gas beracun.
+3. Simpan sementara di wadah tertutup yang aman dan kering.
+4. Setorkan ke tempat penampungan sampah B3 khusus (drop point e-waste) atau Dinas Lingkungan Hidup (DLH) setempat.''';
     }
 
-    if (q.contains('b3') || q.contains('baterai')) {
-      return '''Sampah B3 (Bahan Berbahaya dan Beracun) adalah limbah yang mengandung zat beracun dan dapat membahayakan kesehatan serta lingkungan.
+    if (q.contains('cara') || q.contains('scan') || q.contains('pakai') || q.contains('aplikasi') || q.contains('foto') || q.contains('kamera')) {
+      return '''Panduan Menggunakan Aplikasi PilahNusa AI:
 
-Contoh:
-- Baterai bekas, lampu neon, botol aerosol, aki, obat kadaluarsa
-
-Cara Penanganan:
-- Jangan campur dengan sampah organik atau anorganik!
-- Simpan di wadah kering tertutup (misal botol kaca)
-- Bawa ke drop-point khusus limbah B3 atau Dinas Lingkungan Hidup terdekat''';
+1. Buka tab "Beranda" atau tab "Scan" di bagian bawah.
+2. Pilih "Scan Sekarang" untuk memotret objek sampah langsung dengan kamera, atau "Upload dari Galeri".
+3. Pastikan objek sampah berada di tengah bingkai dan pencahayaan terang.
+4. AI on-device akan langsung mengklasifikasikan sampah ke salah satu dari 10 kategori.
+5. Anda akan mendapatkan:
+   • Kategori sampah (Organik, Anorganik, B3)
+   • Persentase akurasi AI
+   • Waktu terurai di alam
+   • Potensi nilai ekonomi dan tips daur ulang
+   • Video tutorial YouTube terkait
+6. Semua hasil pemindaian tersimpan rapi dan dapat ditinjau kembali di tab "Riwayat".''';
     }
 
-    if (q.contains('cara') || q.contains('scan') || q.contains('pakai') || q.contains('aplikasi')) {
-      return '''Cara menggunakan PilahNusa AI Mobile:
+    if (q.contains('halo') || q.contains('hai') || q.contains('pagi') || q.contains('siang') || q.contains('sore') || q.contains('malam') || q.contains('assalamualaikum')) {
+      return '''Halo! Senang bisa menyapa Anda.
 
-1. Buka menu Beranda atau tab Scan.
-2. Pilih Scan Kamera untuk mengambil foto langsung, atau Upload dari Galeri.
-3. Pastikan objek sampah berada di tengah bingkai dengan pencahayaan terang.
-4. AI akan mendeteksi jenis sampah secara offline di ponsel Anda.
-5. Anda akan mendapatkan kategori sampah, persentase keyakinan, waktu terurai, panduan pembuangan, dan tips daur ulang.
-6. Hasil pemindaian tersimpan secara otomatis di menu Riwayat (SQLite).''';
+Saya adalah asisten edukasi PilahNusa AI. Anda dapat menanyakan apa saja seputar:
+• Cara memilah sampah organik, anorganik, dan B3
+• Waktu penguraian sampah di alam
+• Tips pembuatan kompos dan daur ulang kreatif
+• Cara menggunakan fitur scan aplikasi PilahNusa AI
+
+Ada yang ingin Anda tanyakan seputar pemilahan sampah hari ini?''';
     }
 
-    return '''Halo! Saya asisten edukasi PilahNusa AI.
+    return '''PilahNusa AI siap membantu Anda dalam memilah dan mengelola sampah secara bijak.
 
-Anda dapat menanyakan seputar:
-- Cara memilah sampah organik, anorganik, dan B3
-- Panduan daur ulang dan waktu terurai sampah
-- Tips penggunaan aplikasi PilahNusa AI Mobile
-- Profil pengembang Tim PilahNusa AI (CC26-PSU246)
+Topik yang dapat Anda tanyakan:
+• "Bagaimana cara mengolah sampah organik?"
+• "Berapa lama botol plastik terurai?"
+• "Apa saja yang termasuk limbah B3?"
+• "Bagaimana cara kerja scan di aplikasi ini?"
 
-Catatan: Untuk mengaktifkan respon cerdas penuh berbasis model Gemini 2.5 Flash, Anda dapat memasukkan Gemini API Key melalui ikon Pengaturan di kanan atas.''';
+Silakan ajukan pertanyaan Anda seputar pemilahan sampah!''';
   }
 }
-

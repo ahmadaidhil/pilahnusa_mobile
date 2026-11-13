@@ -9,7 +9,6 @@ import '../services/classifier_service.dart';
 import '../database/database_helper.dart';
 import '../widgets/stat_card.dart';
 import 'result_screen.dart';
-import 'team_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int) onTabChange;
@@ -127,18 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.people_alt_outlined),
-            tooltip: 'Tim Pengembang',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TeamScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: Stack(
         children: [
