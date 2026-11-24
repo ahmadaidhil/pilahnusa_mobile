@@ -24,19 +24,34 @@ class ClassifierService {
     _isInitialized = false;
     _initError = null;
 
-    // Strategy 1: Load from local file via mmap (Most robust & memory-efficient on Android)
+    final errors = <String>[];
+
+    // Strategy 1: Load directly from Asset bundle
     try {
-      debugPrint('[AI] Initializing model via local file storage...');
+      debugPrint('[AI] Attempting Interpreter.fromAsset...');
+      _interpreter = await Interpreter.fromAsset('assets/models/waste_classifier.tflite');
+      _logModelInfo('fromAsset');
+      _isInitialized = true;
+      _initError = null;
+      return;
+    } catch (e) {
+      debugPrint('[AI] fromAsset failed: $e');
+      errors.add('fromAsset: $e');
+      _interpreter = null;
+    }
+
+    // Strategy 2: Load from local disk file
+    try {
+      debugPrint('[AI] Attempting Interpreter.fromFile...');
       final appDir = await getApplicationDocumentsDirectory();
       final modelFile = File('${appDir.path}/waste_classifier.tflite');
 
-      // The quantized TFLite model size in assets is exactly 34,787,200 bytes
       const expectedSize = 34787200;
       final fileExists = await modelFile.exists();
       final currentSize = fileExists ? await modelFile.length() : 0;
 
       if (!fileExists || currentSize != expectedSize) {
-        debugPrint('[AI] Extracting model from asset bundle to disk (${modelFile.path})...');
+        debugPrint('[AI] Extracting model asset to disk (${modelFile.path})...');
         final byteData = await rootBundle.load('assets/models/waste_classifier.tflite');
         final buffer = byteData.buffer.asUint8List(
           byteData.offsetInBytes,
@@ -46,45 +61,50 @@ class ClassifierService {
         debugPrint('[AI] Model asset extracted successfully (${buffer.length} bytes).');
       }
 
-      final options = InterpreterOptions()..threads = 2;
-      _interpreter = Interpreter.fromFile(modelFile, options: options);
-
-      final inTensors = _interpreter!.getInputTensors();
-      final outTensors = _interpreter!.getOutputTensors();
-      debugPrint('[AI] Model loaded via fromFile successfully.');
-      debugPrint('[AI] Input: ${inTensors.first.shape} (${inTensors.first.type})');
-      debugPrint('[AI] Output: ${outTensors.first.shape} (${outTensors.first.type})');
-
+      _interpreter = Interpreter.fromFile(modelFile);
+      _logModelInfo('fromFile');
       _isInitialized = true;
       _initError = null;
       return;
     } catch (e) {
-      debugPrint('[AI] fromFile initialization failed: $e. Trying fromAsset fallback...');
-      _initError = e.toString();
+      debugPrint('[AI] fromFile failed: $e');
+      errors.add('fromFile: $e');
       _interpreter = null;
     }
 
-    // Strategy 2: Fallback to Interpreter.fromAsset
+    // Strategy 3: Load from raw byte buffer
     try {
-      final options = InterpreterOptions()..threads = 2;
-      _interpreter = await Interpreter.fromAsset(
-        'assets/models/waste_classifier.tflite',
-        options: options,
+      debugPrint('[AI] Attempting Interpreter.fromBuffer...');
+      final byteData = await rootBundle.load('assets/models/waste_classifier.tflite');
+      final buffer = byteData.buffer.asUint8List(
+        byteData.offsetInBytes,
+        byteData.lengthInBytes,
       );
-
-      final inTensors = _interpreter!.getInputTensors();
-      final outTensors = _interpreter!.getOutputTensors();
-      debugPrint('[AI] Model loaded via fromAsset successfully.');
-      debugPrint('[AI] Input: ${inTensors.first.shape} (${inTensors.first.type})');
-      debugPrint('[AI] Output: ${outTensors.first.shape} (${outTensors.first.type})');
-
+      _interpreter = Interpreter.fromBuffer(buffer);
+      _logModelInfo('fromBuffer');
       _isInitialized = true;
       _initError = null;
       return;
     } catch (e) {
-      debugPrint('[AI] fromAsset initialization failed: $e');
-      _initError = 'Gagal memuat model TFLite: $e';
+      debugPrint('[AI] fromBuffer failed: $e');
+      errors.add('fromBuffer: $e');
       _interpreter = null;
+    }
+
+    _initError = errors.join(' | ');
+    debugPrint('[AI] All TFLite initialization strategies failed: $_initError');
+  }
+
+  void _logModelInfo(String strategy) {
+    if (_interpreter == null) return;
+    try {
+      final inTensors = _interpreter!.getInputTensors();
+      final outTensors = _interpreter!.getOutputTensors();
+      debugPrint('[AI] Model loaded successfully via $strategy.');
+      debugPrint('[AI] Input: ${inTensors.first.shape} (${inTensors.first.type})');
+      debugPrint('[AI] Output: ${outTensors.first.shape} (${outTensors.first.type})');
+    } catch (e) {
+      debugPrint('[AI] Warning reading tensor info: $e');
     }
   }
 

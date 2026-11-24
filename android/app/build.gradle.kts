@@ -30,6 +30,10 @@ android {
         versionName = flutter.versionName
     }
 
+    aaptOptions {
+        noCompress("tflite")
+    }
+
     buildTypes {
         release {
             // Signing with the debug keys for now, so `flutter run --release` works.
