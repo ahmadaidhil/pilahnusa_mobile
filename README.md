@@ -83,21 +83,21 @@ Menggunakan package `sqflite` (dan `sqflite_common_ffi` untuk pengujian/desktop)
    - Inferensi on-device cepat via TFLite.
 3. **Hasil Klasifikasi (Result)**:
    - Badge kategori (Organik: Hijau, Anorganik: Biru, B3: Merah).
-   - Indikator persentase keyakinan AI (*Confidence Bar*).
+   - Indikator persentase keyakinan AI (_Confidence Bar_).
    - Waktu terurai di alam & nilai ekonomi material.
    - Bahaya dampak lingkungan jika tidak dipilah.
    - Panduan pembuangan yang aman.
    - Tips daur ulang & daftar potensi daur ulang.
    - Rekomendasi video tutorial YouTube yang dapat dibuka langsung.
    - Formulir umpan balik akurasi deteksi.
-   - Fitur bagikan hasil (*Share*).
+   - Fitur bagikan hasil (_Share_).
 4. **Riwayat Pemindaian (History)**:
    - Filter berdasarkan kategori (Semua, Organik, Anorganik, B3).
    - Fitur pencarian instan.
    - Swipe atau klik untuk menghapus per item atau hapus semua dengan konfirmasi.
 5. **Panduan Pemilahan (Guide)**:
    - Edukasi mendalam sampah Organik, Anorganik, dan B3.
-   - Penerapan prinsip 3R (*Reduce, Reuse, Recycle*).
+   - Penerapan prinsip 3R (_Reduce, Reuse, Recycle_).
    - Panduan Bank Sampah.
 6. **Tanya AI (Chatbot)**:
    - Asisten edukasi pemilahan sampah yang terhubung ke Gemini API (`gemini-2.5-flash`).
@@ -107,27 +107,12 @@ Menggunakan package `sqflite` (dan `sqflite_common_ffi` untuk pengujian/desktop)
    - Profil 6 anggota tim Capstone CC26-PSU246 lengkap dengan foto asli, universitas, peran, dan kutipan inspiratif.
    - Tautan ke Dashboard Dataset Streamlit.
 
----
-
-## 👥 Tim Pengembang (CC26-PSU246)
-
-| Nama | ID Siswa | Peran | Universitas |
-| --- | --- | --- | --- |
-| **Irdan Guntara** | CACC246D6Y0874 | Project Manager & AI Engineer | Universitas Kuningan |
-| **Galih Rizaldy** | CACC246D6Y0535 | AI Engineer | Universitas Kuningan |
-| **Ema Maleni** | CFCC174D6X0683 | Full-Stack Web & Mobile Developer | Universitas Primakara |
-| **Nayarah Atmawardani** | CFCC362D6X1422 | Full-Stack Web & Mobile Developer | Universitas Sulawesi Barat |
-| **Ryan Dwi Antoni** | CDCC284D6Y1670 | Data Scientist | Universitas Negeri Surabaya |
-| **Gisca Oktavia Ramadhani** | CDCC246D6X2496 | Data Scientist | Universitas Kuningan |
-
----
-
 ## 🚀 Cara Menjalankan Aplikasi
 
 ### 1. Masuk ke Direktori Proyek
 
 ```bash
-cd C:\Users\ASUS\.gemini\antigravity\scratch\pilahnusa_mobile
+cd pilahnusa_mobile
 ```
 
 ### 2. Mengambil Dependensi
